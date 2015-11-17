@@ -44,12 +44,12 @@ class BaseObject
 		if (!$id)
 			return '';
 
-		if ($this->get('permalink'))
-			return $this->get('permalink');
+		if ($this->attr('cache--permalink'))
+			return $this->attr('cache--permalink');
 
 		$permalink = \get_permalink($id);
 
-		$this->set('permalink', $permalink);
+		$this->setAttr('cache--permalink', $permalink);
 
 		return $permalink;
 
@@ -86,9 +86,44 @@ class BaseObject
 
 	}
 
+	public function featuredImage($size = 'full') {
+
+		$id = $this->get('ID');
+
+		if (!$id)
+			return;
+
+		$cacheKey = 'cache--featured-image-' . $size;
+		$cached = $this->attr($cacheKey);
+
+		if ($cached !== null)
+			return (string) $cached;
+
+		$thumbnail_id = get_post_thumbnail_id($id);
+		$image = null;
+
+		if ($thumbnail_id) {
+			$src = wp_get_attachment_image_src($thumbnail_id, $size);
+
+			if ($src) {
+				$image = $src[0];
+			}
+		}
+
+		$this->setAttr($cacheKey, $image ?: '');
+
+		return $image ?: '';
+
+	}
+
 	public function set($key, $value = null)
 	{
 		return $this->_setter($this->data, $key, $value);
+	}
+
+	public function setAttr($key, $value = null)
+	{
+		return $this->_setter($this->attributes, $key, $value);
 	}
 
 	protected function _setter(&$array, $key, $value = null)
@@ -115,8 +150,18 @@ class BaseObject
 		return $this->_getter($this->data, $key);
 	}
 
-	public function meta($key)
+	public function meta($key = null)
 	{
+
+		if ($this->get('ID') && !$this->attr('cache--meta-fetched')) {
+			$this->meta = get_post_meta($this->get('ID'));
+			$this->setAttr('cache--meta-fetched', true);
+		}
+
+		if ($key === null) {
+			return $this->meta;
+		}
+
 		return $this->_getter($this->meta, $key);
 	}
 
